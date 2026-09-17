@@ -19,13 +19,36 @@ def andar():
 def move_n_dir(n, dir):
 	for i in range(n):
 		move(dir)
-		
 
-def ARAR():
-	if plant_type == Entities.Carrot:
+
+def for_all(f):
+	# roda f() em cada casa da fazenda em paralelo: 1 drone por linha.
+	# se nao houver drone livre, o proprio drone faz a linha e volta pra coluna 0.
+	# espera todos terminarem antes de retornar.
+	size = get_world_size()
+	def linha():
+		for i in range(size - 1):
+			f()
+			move(East)
+		f()
+	drones = []
+	for i in range(size):
+		d = spawn_drone(linha)
+		if d:
+			drones.append(d)
+		else:
+			linha()
+			move_to(0, get_pos_y())
+		move(North)
+	for d in drones:
+		wait_for(d)
+	
+
+def ARAR(tipo):
+	if tipo == Entities.Carrot or tipo == Entities.Pumpkin:
 		if get_ground_type() != Grounds.Soil:
 			till()
-	elif plant_type != None:
+	elif tipo != None:
 		if get_ground_type() != Grounds.Grassland:
 			till()
 
@@ -69,7 +92,7 @@ def POLICULTUTRA():
 		move_to(initial_locx, initial_locy)
 	else:
 		COLHER()
-		ARAR()
+		ARAR(plant_type)
 		plant(plant_type)
 		REGAR()
 		move_to(initial_locx, initial_locy)

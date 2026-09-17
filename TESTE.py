@@ -1,5 +1,6 @@
-import MAZE
+import segundoMAZE
 
-clear()
+while  True:
+	clear()
 
-MAZE.Maze()
+	segundoMAZE.Maze()
