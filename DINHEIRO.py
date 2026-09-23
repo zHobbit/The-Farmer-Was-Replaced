@@ -1,6 +1,6 @@
-import segundoMAZE
+import mapaMAZE
 
-while  True:
+while True:
 	clear()
-
-	segundoMAZE.Maze()
+	if not mapaMAZE.Maze():   # sem substancia (ou o labirinto nao cresceu): para
+		break

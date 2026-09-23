@@ -47,6 +47,9 @@ def ordena_coluna_aqui():
 
 
 def Cacto():
+	# sem fertilizante de proposito: cacto cresce em ~1s e a infeccao cortaria
+	# pela metade a colheita gigante do campo ordenado.
+	Utilidades.trocar_chapeu(Hats.Cactus_Hat)
 	size = get_world_size()
 
 	# 1) planta em paralelo

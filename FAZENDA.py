@@ -2,9 +2,9 @@ import Utilidades
 
 # ============================================================================
 # plantar_e_colher(tipo): numa unica passada paralela (todos os drones), em cada
-# casa faz TUDO de uma vez -> prepara o solo, colhe se estiver pronto e replanta
-# se estiver vazia. Visitar a casa so uma vez (colher + plantar juntos) e' o que
-# maximiza a eficiencia: sem varredura dupla e sem tempo ocioso entre acoes.
+# casa faz TUDO de uma vez -> prepara o solo, planta se vazia, fertiliza (se a
+# regra deixar) e, se ficou pronta, colhe e ja replanta. Visitar a casa uma vez
+# so e' o que maximiza a eficiencia.
 # ============================================================================
 
 def precisa_solo(tipo):
@@ -14,6 +14,9 @@ def precisa_solo(tipo):
 
 
 def plantar_e_colher(tipo):
+	Utilidades.trocar_chapeu(Hats.Brown_Hat)
+	fert = Utilidades.pode_fertilizar()      # decide 1x por passada (drone principal)
+
 	def tratar():
 		# 1) garante o solo certo pro tipo
 		if precisa_solo(tipo):
@@ -22,13 +25,17 @@ def plantar_e_colher(tipo):
 		else:
 			if get_ground_type() != Grounds.Grassland:
 				till()
-		# 2) colhe se estiver pronto (mesma visita)
-		if can_harvest():
-			harvest()
-		# 3) replanta se a casa ficou vazia (mesma visita)
+		# 2) planta se a casa estiver vazia
 		if get_entity_type() == None:
 			plant(tipo)
-		# 4) rega culturas de solo pra crescerem mais rapido (cada drone rega as suas)
+		# 3) fertiliza -> fica pronta na hora
+		if fert:
+			Utilidades.Fertilizar()
+		# 4) colhe se estiver pronta e ja replanta (mesma visita)
+		if can_harvest():
+			harvest()
+			plant(tipo)
+		# 5) rega culturas de solo (cada drone rega as suas)
 		if precisa_solo(tipo) and get_water() < 0.5:
 			use_item(Items.Water)
 

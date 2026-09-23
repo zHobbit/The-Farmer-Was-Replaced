@@ -1,6 +1,8 @@
 import Utilidades
 
 def Maze():
+	# chapeu do labirinto (tambem tira o de dinossauro, que impediria o labirinto de crescer)
+	Utilidades.trocar_chapeu(Hats.Wizard_Hat)
 	# limpa o tile. se ja havia um labirinto, dar harvest fora do tesouro faz ele sumir
 	harvest()
 	# arbusto so cresce em grama; garante o chao certo

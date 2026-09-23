@@ -99,19 +99,64 @@ def POLICULTUTRA():
 		COLHER()
 	
 			
-def move_to(x,y):
-	distance_east = x - get_pos_x() 
-	distance_north = y - get_pos_y()
+def move_to(x, y):
+	# vai pelo caminho MAIS CURTO usando a volta pela borda (o campo da a volta).
+	# Anda um numero fixo de passos, entao nunca fica preso num while infinito.
 	size = get_world_size()
-	if distance_east < size / 2 or (distance_east < 0 and abs(distance_east) > size / 2):
-		move_direction = East
+	dx = (x - get_pos_x()) % size        # quantos passos pro Leste
+	if dx <= size // 2:
+		for i in range(dx):
+			move(East)
 	else:
-		move_direction = West
-	while get_pos_x() != x:
-		move(move_direction)
-	if distance_north < size / 2 or (distance_north < 0 and abs(distance_north) > size / 2):
-		move_direction = North
+		for i in range(size - dx):       # mais perto pelo Oeste
+			move(West)
+	dy = (y - get_pos_y()) % size        # quantos passos pro Norte
+	if dy <= size // 2:
+		for i in range(dy):
+			move(North)
 	else:
-		move_direction = South
-	while get_pos_y() != y:
-		move(move_direction)
+		for i in range(size - dy):       # mais perto pelo Sul
+			move(South)
+
+
+# ============================================================================
+# FERTILIZANTE com histerese: gasta ate acabar; depois so volta a gastar quando
+# o estoque juntar LIMITE_FERTILIZANTE de novo.
+# Atencao: planta fertilizada fica INFECTADA -> metade da colheita vira
+# Weird_Substance (que alimenta os labirintos).
+# ============================================================================
+
+LIMITE_FERTILIZANTE = 50000
+fertilizando = num_items(Items.Fertilizer) >= LIMITE_FERTILIZANTE
+
+
+def pode_fertilizar():
+	# chamar no drone principal, 1x por passada; o resultado vai pros outros drones
+	global fertilizando
+	qtd = num_items(Items.Fertilizer)
+	if fertilizando and qtd < 1:
+		fertilizando = False             # acabou: para de gastar
+	elif not fertilizando and qtd >= LIMITE_FERTILIZANTE:
+		fertilizando = True              # juntou 50k de novo: volta a gastar
+	return fertilizando
+
+
+def Fertilizar():
+	# acelera a planta sob o drone ate ela ficar pronta (cada dose tira 2s do
+	# crescimento). Para se nao conseguir usar: sem fertilizante ou sem planta.
+	while not can_harvest():
+		if not use_item(Items.Fertilizer):
+			break
+
+
+# ============================================================================
+# CHAPEUS: cada funcao usa o seu, pra saber de longe o que esta rodando.
+#   GRAMA  -> Straw_Hat     MADERA  -> Tree_Hat     CENOURA     -> Carrot_Hat
+#   ABOBORA-> Pumpkin_Hat   CACTO   -> Cactus_Hat   POLICULTURA -> Green_Hat
+#   FAZENDA-> Brown_Hat     MAZE    -> Wizard_Hat   segundoMAZE -> Gold_Hat
+#   DINOSSAURO -> Dinosaur_Hat
+# ============================================================================
+
+def trocar_chapeu(chapeu):
+	# equipa o chapeu pedido. Obs: sair do chapeu de dinossauro colhe a cauda (ossos).
+	change_hat(chapeu)

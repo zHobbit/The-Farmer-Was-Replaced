@@ -1,14 +1,23 @@
 import Utilidades
 
 # ============================================================================
-# POLICULTURA paralela (multi-drone): um drone por linha. Cada drone anda a sua
-# linha por posicao ABSOLUTA (move_to), pra poder pular ate a casa do acompanhante
-# e voltar sem se perder. Em cada casa: colhe se pronto, planta a cultura e planta
-# o acompanhante que ela pede (get_companion) na posicao pedida -> bonus de rendimento.
+# POLICULTURA paralela em 3 FASES (todos os drones, sem condicao de corrida).
 #
-# Obs: como o acompanhante cai numa casa vizinha (ate 3), drones de linhas vizinhas
-# podem escrever na mesma casa (condicao de corrida) e um bonus ou outro se perde.
-# Nao trava nem quebra; so nao fica 100% perfeito nas bordas entre linhas.
+# Cada planta pede um acompanhante (get_companion) a ate 3 casas de distancia.
+# Se cada drone plantasse os acompanhantes da propria linha, ele invadiria as
+# linhas vizinhas e brigaria com os outros drones. Entao cada passada tem 3 fases,
+# e em TODAS elas cada drone so mexe na PROPRIA linha:
+#
+#   Fase 1: cada drone planta a cultura na sua linha e DEVOLVE os pedidos de
+#           acompanhante (tipo, x, y) daquela linha.
+#   Central: o drone principal junta os pedidos, resolve conflitos (casa pedida
+#           por duas plantas -> vale o primeiro) e separa pela linha de destino.
+#   Fase 2: cada drone planta os acompanhantes que caem na SUA linha.
+#   Fase 3: cada drone fertiliza (se a regra deixar), colhe e replanta a sua
+#           linha, PULANDO as casas de acompanhante (pra nao arrancar o
+#           acompanhante antes da planta do vizinho ser colhida com o bonus).
+#
+# Entre as fases o drone principal espera todos terminarem (wait_for).
 # Culturas que ganham bonus: Grass, Bush, Tree e Carrot.
 # ============================================================================
 
@@ -21,35 +30,108 @@ def preparar_solo(tipo):
 			till()
 
 
-def _linha(tipo, y):
-	# processa a linha y inteira (posicao absoluta pra sobreviver aos pulos do acompanhante)
+def _fase_plantar(tipo, y):
+	# FASE 1: planta a cultura na linha y e devolve os pedidos [(tipo_acomp, x, y), ...]
 	size = get_world_size()
+	pedidos = []
 	for x in range(size):
 		Utilidades.move_to(x, y)
-		if can_harvest():
-			harvest()
-		preparar_solo(tipo)
 		if get_entity_type() == None:
+			preparar_solo(tipo)
 			plant(tipo)
-		comp = get_companion()
-		if comp != None:
-			tc, (cx, cy) = comp
-			Utilidades.move_to(cx, cy)
+		if get_entity_type() == tipo:       # so a cultura principal pede acompanhante
+			comp = get_companion()
+			if comp != None:
+				tc, (cx, cy) = comp
+				pedidos.append((tc, cx % size, cy % size))
+	return pedidos
+
+
+def _fase_acompanhantes(y, lista):
+	# FASE 2: planta os acompanhantes que caem na linha y. lista = [(x, tipo_acomp), ...]
+	for p in lista:
+		x = p[0]
+		tc = p[1]
+		Utilidades.move_to(x, y)
+		if get_entity_type() != tc:
+			harvest()                        # libera a casa: plant() so funciona em casa vazia
 			preparar_solo(tc)
-			if get_entity_type() != tc:
-				plant(tc)
+			plant(tc)
+
+
+def _fase_colher(tipo, y, pular, fert):
+	# FASE 3: fertiliza, colhe e replanta a linha y, pulando as casas de acompanhante
+	size = get_world_size()
+	acompanhantes = set()
+	for x in pular:
+		acompanhantes.add(x)
+	for x in range(size):
+		if x in acompanhantes:
+			continue
+		Utilidades.move_to(x, y)
+		if fert:
+			Utilidades.Fertilizar()          # fica pronta na hora
+		if can_harvest():
+			harvest()                        # o acompanhante esta no lugar -> sai com bonus
+		if get_entity_type() != tipo:        # casa vazia ou resto de acompanhante antigo
+			if get_entity_type() != None:
+				harvest()
+			preparar_solo(tipo)
+			plant(tipo)                      # ja deixa a proxima crescendo
 
 
 def policultura(tipo):
-	# 1 drone por linha (todos partindo de (0,0); cada um navega ate a sua linha)
+	Utilidades.trocar_chapeu(Hats.Green_Hat)
+	fert = Utilidades.pode_fertilizar()      # decide 1x por passada (drone principal)
 	size = get_world_size()
 	Utilidades.move_to(0, 0)
+
+	# ---- FASE 1: plantar e juntar os pedidos de acompanhante ----
 	drones = []
+	resultados = []
 	for y in range(size):
-		d = spawn_drone(_linha, tipo, y)
+		d = spawn_drone(_fase_plantar, tipo, y)
 		if d:
 			drones.append(d)
 		else:
-			_linha(tipo, y)              # sem drone livre: faz voce mesmo
+			resultados.append(_fase_plantar(tipo, y))   # sem drone livre: faz voce mesmo
+	for d in drones:
+		resultados.append(wait_for(d))      # wait_for devolve a lista de pedidos do drone
+
+	# ---- CENTRAL: resolve conflitos e separa pela linha de destino ----
+	por_linha = []
+	for y in range(size):
+		por_linha.append([])
+	ja_pedida = set()
+	for lista in resultados:
+		for p in lista:
+			alvo = (p[1], p[2])
+			if alvo not in ja_pedida:       # casa pedida por duas plantas: vale o primeiro
+				ja_pedida.add(alvo)
+				por_linha[p[2]].append((p[1], p[0]))
+
+	# ---- FASE 2: plantar os acompanhantes (cada drone na sua linha) ----
+	drones = []
+	for y in range(size):
+		if len(por_linha[y]) > 0:
+			d = spawn_drone(_fase_acompanhantes, y, por_linha[y])
+			if d:
+				drones.append(d)
+			else:
+				_fase_acompanhantes(y, por_linha[y])
+	for d in drones:
+		wait_for(d)
+
+	# ---- FASE 3: colher e replantar (pulando as casas de acompanhante) ----
+	drones = []
+	for y in range(size):
+		pular = []
+		for p in por_linha[y]:
+			pular.append(p[0])
+		d = spawn_drone(_fase_colher, tipo, y, pular, fert)
+		if d:
+			drones.append(d)
+		else:
+			_fase_colher(tipo, y, pular, fert)
 	for d in drones:
 		wait_for(d)
