@@ -11,6 +11,8 @@ import Utilidades
 # ============================================================================
 
 def Maze():
+	# chapeu do labirinto de ouro (tambem tira o de dinossauro, que impediria o labirinto de crescer)
+	Utilidades.trocar_chapeu(Hats.Gold_Hat)
 	# limpa o tile. se ja havia um labirinto, dar harvest fora do tesouro faz ele sumir
 	harvest()
 	# arbusto so cresce em grama; garante o chao certo
@@ -66,7 +68,10 @@ def melhor_direcao(ax, ay, visitado):
 
 
 def resolver_labirinto():
-	alvo_x, alvo_y = measure()                       # posicao do tesouro
+	alvo = measure()                                 # posicao do tesouro
+	if alvo == None:                                 # nao ha labirinto pra resolver
+		return
+	alvo_x, alvo_y = alvo
 	visitado = set()
 	visitado.add((get_pos_x(), get_pos_y()))
 	caminho = []                                     # pilha de direcoes p/ backtrack
