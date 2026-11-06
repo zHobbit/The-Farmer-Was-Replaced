@@ -1,77 +1,100 @@
-# The Farmer Was Replaced — minha jornada em Python
+# 🌾 The Farmer Was Replaced: my Python journey
 
-Código da minha fazenda automatizada no jogo **The Farmer Was Replaced**, onde se programa um drone em Python para plantar, colher e resolver desafios. Este repositório é o registro da minha jornada de aprendizado: tentativa, erro, medição e evolução até chegar em soluções eficientes e paralelas.
+The code behind my automated farm in **The Farmer Was Replaced**, a game where you program a drone in Python to plant, harvest and solve challenges. This repository is the record of my learning journey: trial, error, measuring and iterating until I reached efficient, parallel solutions.
 
-## Arquivos
+> File and function names are in Portuguese (`FAZENDA` = farm, `ABOBORA` = pumpkin, `CACTO` = cactus, `CENOURA` = carrot, `GRAMA` = grass, `MADERA` = wood, `DINHEIRO` = money, `MEDIR` = measure, `POLICULTURA` = polyculture).
 
-| Arquivo | O que faz |
+## ✨ Technologies
+
+- `Python` (the game's built-in dialect)
+- Multi-drone parallelism
+- Search algorithms: DFS, BFS, wall following
+- Hamiltonian cycles, bubble sort
+
+## 🚀 Highlights
+
+- **3.4× faster maze solver** - A mapping + reuse strategy cut each treasure from 201,874 to 58,977 ticks
+- **Multi-drone parallelism** - `for_all(f)` runs a function on every tile using all available drones, with no race conditions
+- **3-phase polyculture** - Crops and companion plants planted in parallel without drones fighting over tiles
+- **Hamiltonian-cycle snake** - Covers the whole field without the dinosaur ever biting itself
+- **Measured, not guessed** - Every optimization benchmarked with `get_tick_count()`
+
+## 🎯 Files
+
+| File | What it does |
 |---|---|
-| `main.py` | Loop principal (roda a estratégia atual) |
-| `Utilidades.py` | Base: `move_to`, `for_all` (paralelização multi-drone), fertilizante com histerese e troca de chapéu |
-| `FAZENDA.py` | `plantar_e_colher(tipo)` — planta, fertiliza, colhe e replanta cada casa **na mesma passada**, em paralelo |
-| `GRAMA.py` / `MADERA.py` / `CENOURA.py` | Culturas simples paralelizadas |
-| `ABOBORA.py` | Abóbora com fusão em bloco gigante (rende `n×n×6`) |
-| `CACTO.py` | Cacto: planta, **ordena o campo** (linhas e colunas) e colhe tudo de uma vez |
-| `POLICULTURA.py` | Policultura paralela **em 3 fases**: cultura + acompanhante (`get_companion`) sem disputa entre drones |
-| `MAZE.py` | Labirinto — seguidor de parede (mão esquerda) |
-| `segundoMAZE.py` | Labirinto — DFS guiada por `measure()` |
-| `mapaMAZE.py` | Labirinto — **mapa + reaproveitamento do labirinto** (o mais rápido) |
-| `MEDIR.py` | Corrida entre os algoritmos de labirinto, medida com `get_tick_count()` |
-| `DINOSSAURO.py` | "Cobrinha" com chapéu de dinossauro — ciclo hamiltoniano para colher ossos |
-| `DINHEIRO.py` | Runner que farma ouro com o `mapaMAZE` |
+| `main.py` | Main loop (runs the current strategy) |
+| `Utilidades.py` | Core helpers: `move_to`, `for_all` (multi-drone parallelism), fertilizer with hysteresis and hat switching |
+| `FAZENDA.py` | `plantar_e_colher(tipo)` plants, fertilizes, harvests and replants each tile **in the same pass**, in parallel |
+| `GRAMA.py` / `MADERA.py` / `CENOURA.py` | Simple parallel crops |
+| `ABOBORA.py` | Pumpkins merging into a giant block (yields `n×n×6`) |
+| `CACTO.py` | Cactus: plants, **sorts the field** (rows and columns) and harvests everything at once |
+| `POLICULTURA.py` | Parallel polyculture **in 3 phases**: crop + companion (`get_companion`) with no drone contention |
+| `MAZE.py` | Maze: wall follower (left hand) |
+| `segundoMAZE.py` | Maze: DFS guided by `measure()` |
+| `mapaMAZE.py` | Maze: **map + maze reuse** (the fastest) |
+| `MEDIR.py` | Race between the maze algorithms, timed with `get_tick_count()` |
+| `DINOSSAURO.py` | "Snake" with the dinosaur hat: Hamiltonian cycle to harvest bones |
+| `DINHEIRO.py` | Runner that farms gold with `mapaMAZE` |
 
-## Destaques técnicos
+## 🧠 Technical Deep Dive
 
-### Multi-drone (paralelização)
-`Utilidades.for_all(f)` roda uma função em cada casa usando **todos os drones disponíveis** (um por linha), no padrão `if not spawn_drone(tarefa): tarefa()`, esperando todos terminarem. Cada drone trabalha em casas disjuntas para evitar condição de corrida.
+### Multi-drone parallelism
+`Utilidades.for_all(f)` runs a function on every tile using **all available drones** (one per row), with the pattern `if not spawn_drone(task): task()`, then waits for all of them to finish. Each drone works on disjoint tiles to avoid race conditions.
 
-### Labirinto com mapa (`mapaMAZE.py`)
-Usar `Weird_Substance` **em cima do tesouro** coleta o ouro e sorteia um tesouro novo **no mesmo labirinto** (até 300 vezes). Então o drone anota numa tabela os vizinhos alcançáveis de cada casa enquanto anda:
-- **1º tesouro:** explora com DFS guiada por `measure()` e vai mapeando.
-- **Próximos:** **BFS no mapa** dá o caminho mais curto por casas conhecidas, sem explorar. Se o tesouro caiu numa parte não mapeada, vai até a casa conhecida mais perto e explora dali.
-- Paredes só **somem** entre um tesouro e outro, então uma passagem anotada como aberta continua aberta.
-- Um mapa novo para cada labirinto.
+### Maze with a map (`mapaMAZE.py`)
+Using `Weird_Substance` **on top of the treasure** collects the gold and places a new treasure **in the same maze** (up to 300 times). So while it moves, the drone records the reachable neighbors of each tile in a table:
+- **1st treasure:** explores with DFS guided by `measure()`, mapping as it goes.
+- **Next ones:** **BFS on the map** gives the shortest path through known tiles, with no exploring. If the treasure lands in an unmapped area, the drone goes to the closest known tile and explores from there.
+- Walls only **disappear** between treasures, so a passage recorded as open stays open.
+- A fresh map for each maze.
 
-### Medindo com o timer (`MEDIR.py`)
-`get_tick_count()` conta os ticks de execução, o custo do jogo, que não muda com velocidade ou energia. Medir é grátis. Resultado de 30 tesouros num campo 32×32:
+### Measuring with the timer (`MEDIR.py`)
+`get_tick_count()` counts execution ticks, the game's cost unit, which does not change with speed or power. Measuring is free. Results for 30 treasures on a 32×32 field:
 
-| Versão | ticks/tesouro | tempo real |
+| Version | ticks/treasure | real time |
 |---|---|---|
-| `segundoMAZE` (labirinto novo a cada tesouro) | 201.874 | ~33 min |
-| `mapaMAZE` (primeira versão) | 103.299 | ~17 min |
-| `mapaMAZE` otimizado | **58.977** | **~10 min** |
+| `segundoMAZE` (new maze for every treasure) | 201,874 | ~33 min |
+| `mapaMAZE` (first version) | 103,299 | ~17 min |
+| `mapaMAZE` optimized | **58,977** | **~10 min** |
 
-**3,4× mais rápido** que o `segundoMAZE`, com o mesmo ouro e a mesma substância gasta.
+**3.4× faster** than `segundoMAZE`, with the same gold and the same amount of substance spent.
 
-### Fertilizante com histerese
-Cada casa é fertilizada até a planta ficar pronta. Quando o estoque **zera**, para; só volta a fertilizar quando juntar **50.000** de novo. Planta fertilizada fica infectada e metade da colheita vira `Weird_Substance`, que alimenta os labirintos. O cacto fica de fora de propósito: cresce em ~1s, e a infecção cortaria pela metade a colheita do campo ordenado.
+### Fertilizer with hysteresis
+Each tile is fertilized until the plant is ready. When the stock **runs out**, it stops, and only starts fertilizing again once it has **50,000** saved up. Fertilized plants get infected and half the harvest becomes `Weird_Substance`, which feeds the mazes. Cactus is left out on purpose: it grows in ~1s, and the infection would halve the sorted field's harvest.
 
-### Um chapéu por função
-Cada função equipa o seu (`Straw`, `Tree`, `Carrot`, `Pumpkin`, `Cactus`, `Green`, `Brown`, `Wizard`, `Gold`, `Dinosaur`), para saber de longe o que está rodando. Trocar de chapéu no começo dos labirintos também tira o de dinossauro, que impedia o labirinto de crescer.
+### One hat per function
+Each function equips its own hat (`Straw`, `Tree`, `Carrot`, `Pumpkin`, `Cactus`, `Green`, `Brown`, `Wizard`, `Gold`, `Dinosaur`), so I can tell from afar what is running. Switching hats at the start of the mazes also removes the dinosaur hat, which was stopping the maze from growing.
 
-### Cacto
-A colheita só se espalha com o campo **ordenado** (linhas crescentes O→L, colunas S→N). Como só dá para trocar vizinhos (`swap`), uso **bubble sort** por linha e por coluna, paralelizado.
+### Cactus
+The harvest only spreads when the field is **sorted** (rows ascending W→E, columns S→N). Since you can only swap neighbors (`swap`), I use **bubble sort** per row and per column, in parallel.
 
-### Abóbora
-Fundem num bloco gigante quando **todas** estão crescidas (`n×n×6`). Como 20% morrem ao crescer, o código replanta em paralelo até o campo fundir.
+### Pumpkin
+Pumpkins merge into a giant block when **all** of them are grown (`n×n×6`). Since 20% die while growing, the code replants in parallel until the field merges.
 
-### Dinossauro (cobrinha)
-Come maçãs (compradas com cacto) para crescer a cauda; ao trocar de chapéu recebe `comprimento²` ossos. A versão final usa um **ciclo hamiltoniano** que cobre o campo inteiro sem a cobra se morder, com `set_world_size` garantindo campo par.
+### Dinosaur (snake)
+It eats apples (bought with cactus) to grow its tail; switching hats rewards `length²` bones. The final version uses a **Hamiltonian cycle** that covers the whole field without the snake biting itself, with `set_world_size` guaranteeing an even-sized field.
 
-## Desafios e aprendizados (a parte de tentativa e erro)
+## 📍 The Process (the trial-and-error part)
 
-- **Labirinto — três gerações:** seguidor de parede (simples, mas varre tudo) → DFS guiada por `measure()` → **mapa + reaproveitamento**. Pra um labirinto de um tesouro só, mapear não ajuda, porque é preciso andar pra descobrir o mapa. A virada foi perceber que o **mesmo labirinto pode render até 300 tesouros**, e aí o mapa passa a valer muito.
+- **Maze, three generations:** wall follower (simple, but sweeps everything) → DFS guided by `measure()` → **map + reuse**. For a single-treasure maze, mapping doesn't help, because you have to walk to discover the map. The turning point was realizing that **the same maze can yield up to 300 treasures**, and then the map becomes very valuable.
 
-- **Medir antes de otimizar:** a primeira medição mostrou a curva do mapa **ao contrário**: o 1º tesouro custou 45 mil ticks, e os seguintes, 105 mil. A doc de tempo explicou: **cada operação de código também custa tick**, e conjunto/dicionário cobram pelo tamanho da chave. O BFS recalculava o mapa inteiro a cada tesouro. As correções: parar o BFS ao achar o tesouro, casas como número (`y * tamanho + x`) em vez de tupla, o mapa guardando os vizinhos prontos e o tamanho do campo lido uma vez só. Depois disso os tesouros seguintes caíram pra ~52 mil ticks, **4,5× mais baratos que o primeiro**.
+- **Measure before optimizing:** the first measurement showed the map's curve **backwards**: the 1st treasure cost 45k ticks, and the following ones 105k. The timing docs explained it: **every code operation also costs ticks**, and sets and dictionaries charge by key size. The BFS was recomputing the entire map for every treasure. The fixes: stop the BFS once the treasure is found, store tiles as a number (`y * size + x`) instead of a tuple, keep the neighbors precomputed in the map, and read the field size only once. After that, the following treasures dropped to ~52k ticks, **4.5× cheaper than the first**.
 
-- **O `move_to` que dava a volta no mundo:** pra ir 2 casas pro Oeste, a distância é −2, e −2 é sempre menor que `tamanho/2`, então ele ia pro Leste e dava a volta no campo inteiro. Quase não aparecia na fazenda, mas na policultura (pulos curtos pra trás o tempo todo) pesava muito. Hoje ele vai pelo caminho mais curto e anda um número fixo de passos, então nunca fica preso num `while`.
+- **The `move_to` that went around the world:** to move 2 tiles West, the distance is −2, and −2 is always less than `size/2`, so it went East and wrapped around the whole field. It barely showed on the farm, but in polyculture (short hops backwards all the time) it was very costly. Now it takes the shortest path and moves a fixed number of steps, so it never gets stuck in a `while`.
 
-- **Policultura — três versões até ficar sem disputa:** 1 drone por linha dava avisos *"Não é possível plantar Carrot em Grassland"*: o `till()` **alterna** o chão, e dois drones arando a mesma casa se anulavam. Rodar em **ondas** de linhas a 7 de distância resolveu, mas usava poucos drones. A versão final tem **3 fases** (plantar e anotar pedidos → plantar acompanhantes → colher), e em cada fase cada drone só mexe na própria linha. Os drones devolvem os pedidos pelo `wait_for`.
+- **Polyculture, three versions until there was no contention:** one drone per row gave *"Can't plant Carrot on Grassland"* warnings: `till()` **toggles** the soil, and two drones tilling the same tile cancelled each other out. Running in **waves** of rows 7 apart fixed it, but used few drones. The final version has **3 phases** (plant and record requests → plant companions → harvest), and in each phase every drone only touches its own row. Drones return their requests through `wait_for`.
 
-- **Cacto — nem todo algoritmo serve:** como só se troca vizinhos, tive que usar **bubble sort**. A dica do jogo salvou: "com as linhas ordenadas, ordenar as colunas não as desordena".
+- **Cactus, not every algorithm fits:** since you can only swap neighbors, I had to use **bubble sort**. The game's hint saved me: "once the rows are sorted, sorting the columns doesn't unsort them".
 
-- **Dinossauro — a saga da cobrinha:** ciclo puro (**seguro mas lento**) → guloso com `measure()` (**rápido mas encurralava**) → híbrido com atalhos (rodava no canto, no meio, em loop). Os bugs: limite de atalho errado, falta da margem de Tapsell e o `.discard()` de `set`, que **não existe** no Python do jogo. No fim, fiquei com a versão segura. E o ciclo hamiltoniano só fecha em **campo par**, resolvido com `set_world_size`.
+- **Dinosaur, the snake saga:** pure cycle (**safe but slow**) → greedy with `measure()` (**fast but got cornered**) → hybrid with shortcuts (spun in the corner, in the middle, in loops). The bugs: a wrong shortcut limit, the missing Tapsell margin, and `set.discard()`, which **does not exist** in the game's Python. In the end, I kept the safe version. And the Hamiltonian cycle only closes on an **even field**, solved with `set_world_size`.
 
-- **A pegadinha da ferramenta:** com o jogo aberto, ele **regrava/apaga** os arquivos no disco a cada autosave. Aprendi a editar dentro do editor do jogo ou fechar o jogo antes de salvar de fora.
+- **The tooling gotcha:** while the game is open, it **rewrites/deletes** files on disk on every autosave. I learned to edit inside the game's editor or close the game before saving from outside.
 
-- **Escalar com drones:** o `for_all` usa até `max_drones()` (um por linha). Enquanto o número de drones for ≤ número de linhas, ele aproveita todos automaticamente.
+- **Scaling with drones:** `for_all` uses up to `max_drones()` (one per row). As long as the number of drones is ≤ the number of rows, it uses all of them automatically.
+
+## 🚦 Running the Project
+
+1. Get **The Farmer Was Replaced** on Steam
+2. Copy the `.py` files into the game's save folder (close the game first, see the tooling gotcha above)
+3. Open the game and run `main.py` from the in-game editor
